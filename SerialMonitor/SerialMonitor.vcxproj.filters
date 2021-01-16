@@ -36,6 +36,9 @@
     <ClInclude Include="Serial.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SampleC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SerialMonitor.cpp">
@@ -48,6 +51,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Serial.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleC.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

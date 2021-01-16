@@ -10,6 +10,9 @@
 #include <fstream>
 #include "Serial.h"
 
+#include "SampleC.c"
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -25,6 +28,7 @@ CSerialMonitorDlg::CSerialMonitorDlg(CWnd* pParent /*=NULL*/)
 	m_loop = true;
 	m_isConnect = false;
 	m_isFastMode = false;
+	m_isPending = false;
 }
 
 void CSerialMonitorDlg::DoDataExchange(CDataExchange* pDX)
@@ -33,7 +37,8 @@ void CSerialMonitorDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_PORT, m_PortCombobox);
 	DDX_Control(pDX, IDC_COMBO_BAUDRATE, m_BaudrateCombobox);
 	DDX_Control(pDX, IDC_BUTTON_CONNECT, m_ConnectButton);
-	DDX_Control(pDX, ID_EDIT_SERIAL, m_Editor);
+	DDX_Control(pDX, ID_EDIT_SERIAL2, m_Editor);
+	DDX_Control(pDX, IDC_EDIT1, m_Updater);
 	DDX_Control(pDX, IDC_BUTTON_DISCONNECT, m_DisconnectButton);
 	DDX_Control(pDX, IDC_CHECK_AUTOSCROLL, m_AutoScrollButton);
 	DDX_Control(pDX, IDC_STATIC_FAST_TEXT, m_FastReceiveText);
@@ -54,6 +59,15 @@ BEGIN_MESSAGE_MAP(CSerialMonitorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_CLEAR, &CSerialMonitorDlg::OnBnClickedButtonClear)
 	ON_BN_CLICKED(IDC_RADIO1, &CSerialMonitorDlg::OnBnClickedRadio1)
 	ON_BN_CLICKED(IDC_RADIO2, &CSerialMonitorDlg::OnBnClickedRadio2)
+	ON_BN_CLICKED(IDC_BUTTON1, &CSerialMonitorDlg::OnBnClickedButton1)
+	ON_EN_CHANGE(IDC_EDIT2, &CSerialMonitorDlg::OnEnChangeEdit2)
+	ON_BN_CLICKED(IDC_CHECK2, &CSerialMonitorDlg::OnBnClickedCheck2)
+	ON_BN_CLICKED(IDC_BUTTON2, &CSerialMonitorDlg::OnBnClickedButton2)
+	ON_LBN_SELCHANGE(IDC_LIST1, &CSerialMonitorDlg::OnLbnSelchangeList1)
+	ON_BN_CLICKED(IDC_RADIO3, &CSerialMonitorDlg::OnBnClickedRadio3)
+	ON_BN_CLICKED(IDC_RADIO4, &CSerialMonitorDlg::OnBnClickedRadio4)
+	ON_WM_TIMER()
+	ON_BN_CLICKED(IDC_BUTTON3, &CSerialMonitorDlg::OnBnClickedButton3)
 END_MESSAGE_MAP()
 
 
@@ -105,8 +119,6 @@ BOOL CSerialMonitorDlg::OnInitDialog()
 	}
 	m_BaudrateCombobox.SetCurSel(0);
 
-	// 환경설정 파일이 있으면 읽어온다.
-	// portnumber, baudrate를 저장한다.
 	std::ifstream iif("serialmonitor_conf.txt");
 	if (iif.is_open())
 	{
@@ -218,13 +230,12 @@ void CSerialMonitorDlg::MainLoop()
 		oldT = curT;
 
 		Process(t);
-
+		  
 		Sleep(0);
 	}
 }
 
 
-// http://www.codeproject.com/Articles/12093/Using-RichEditCtrl-to-Display-Formatted-Logs
 int CSerialMonitorDlg::AppendToLogAndScroll(CString str, COLORREF color)
 {
 	long nVisible = 0;
@@ -264,7 +275,6 @@ int CSerialMonitorDlg::AppendToLogAndScroll(CString str, COLORREF color)
 		m_Editor.LineScroll(1 - nVisible);
 	}
 
-	// 내용이 너무 많으면 지운다.
 	const int maximumLine = 100;
 	if (m_Editor.GetLineCount() > maximumLine)
 	{
@@ -277,7 +287,6 @@ int CSerialMonitorDlg::AppendToLogAndScroll(CString str, COLORREF color)
 }
 
 
-//http://www.codeproject.com/Articles/12093/Using-RichEditCtrl-to-Display-Formatted-Logs
 int CSerialMonitorDlg::GetNumVisibleLines(CRichEditCtrl* pCtrl)
 {
 	CRect rect;
@@ -319,7 +328,6 @@ void CSerialMonitorDlg::Process(float deltaT)
 	{
 		static CString str;
 		str += data;
-		// CR Return 일 때만 업데이트 된다.
 		if (data == '\n')
 		{
 			m_FastReceiveText.SetWindowTextW(str);
@@ -329,10 +337,16 @@ void CSerialMonitorDlg::Process(float deltaT)
 	else
 	{
 		CString str;
-		str += data;
+		str += data;                                                  
 		AppendToLogAndScroll(str, RGB(0,0,0));
 	}
 
+	if (m_isPending) {
+		m_isPending = false;
+		CString str;
+		m_Updater.GetWindowTextW(str);
+		m_Serial.SendData((char *) str.GetBuffer(str.GetLength()), str.GetLength());
+	}
 }
 
 
@@ -359,7 +373,6 @@ void CSerialMonitorDlg::OnBnClickedButtonConnect()
 		m_ConnectButton.EnableWindow(FALSE);
 		m_DisconnectButton.EnableWindow(TRUE);
 
-		// portnumber, baudrate를 저장한다.
 		std::ofstream of("serialmonitor_conf.txt");
 		if (of.is_open())
 		{
@@ -415,4 +428,109 @@ void CSerialMonitorDlg::OnBnClickedRadio1()
 void CSerialMonitorDlg::OnBnClickedRadio2()
 {
 	m_isFastMode = true;
+}
+
+
+void CSerialMonitorDlg::OnBnClickedButton1()
+{
+	// TODO: Add your control notification handler code here
+	m_isPending = true;
+}
+
+
+void CSerialMonitorDlg::OnEnChangeEdit2()
+{
+	// TODO:  If this is a RICHEDIT control, the control will not
+	// send this notification unless you override the CDialogEx::OnInitDialog()
+	// function and call CRichEditCtrl().SetEventMask()
+	// with the ENM_CHANGE flag ORed into the mask.
+
+	// TODO:  Add your control notification handler code here
+	CString str;
+	((CEdit *)GetDlgItem(IDC_CHECK2))->GetWindowTextW(str);
+}
+
+
+void CSerialMonitorDlg::OnBnClickedCheck2()
+{
+	// TODO: Add your control notification handler code here
+	int state = ((CButton *)GetDlgItem(IDC_CHECK2))->GetCheck();
+}
+
+
+void CSerialMonitorDlg::OnBnClickedButton2()
+{
+	// TODO: Add your control notification handler code here
+	((CComboBox *)GetDlgItem(IDC_COMBO1))->AddString(_T("First Option"));
+	((CComboBox *)GetDlgItem(IDC_COMBO1))->InsertString(1, _T("Second Option"));
+	((CComboBox *)GetDlgItem(IDC_COMBO1))->AddString(_T("Third Option"));
+	int index = ((CComboBox *)GetDlgItem(IDC_COMBO1))->FindStringExact(0, _T("Third Option"));
+	((CComboBox *)GetDlgItem(IDC_COMBO1))->SetCurSel(index);
+	assert(index == ((CComboBox *)GetDlgItem(IDC_COMBO1))->GetCurSel());
+
+	((CListBox *)GetDlgItem(IDC_LIST1))->AddString(_T("First Option"));
+	((CListBox *)GetDlgItem(IDC_LIST1))->InsertString(1, _T("Second Option"));
+	((CListBox *)GetDlgItem(IDC_LIST1))->AddString(_T("Third Option"));
+	index = ((CListBox *)GetDlgItem(IDC_LIST1))->FindStringExact(0, _T("Third Option"));
+	((CListBox *)GetDlgItem(IDC_LIST1))->SetCurSel(index);
+	assert(index == ((CListBox *)GetDlgItem(IDC_LIST1))->GetCurSel());
+
+	((CStatic *)GetDlgItem(IDC_STATIC))->SetWindowTextW(_T("Airbone"));
+
+	NormalTimerID = SetTimer(1, 150, NULL);
+	
+	TimerID = timeSetEvent(20, 1, (LPTIMECALLBACK) MMTimerProc, (DWORD)this, TIME_PERIODIC);
+	
+}
+
+
+static void MMTimerProc(UINT uDelay,
+	UINT uResolution,
+	LPTIMECALLBACK lpTimeProc,
+	DWORD_PTR dwUser,
+	UINT fuEvent)
+{
+	CSerialMonitorDlg *pDlg = (CSerialMonitorDlg*)(dwUser);
+}
+
+
+void CSerialMonitorDlg::OnLbnSelchangeList1()
+{
+	// TODO: Add your control notification handler code here
+}
+
+
+void CSerialMonitorDlg::OnBnClickedRadio3()
+{
+	// TODO: Add your control notification handler code here
+	int state = ((CButton *)GetDlgItem(IDC_RADIO3))->GetCheck();
+}
+
+
+void CSerialMonitorDlg::OnBnClickedRadio4()
+{
+	// TODO: Add your control notification handler code here
+	int state = ((CButton *)GetDlgItem(IDC_RADIO3))->GetCheck();
+}
+
+
+void CSerialMonitorDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: Add your message handler code here and/or call default
+	switch (nIDEvent) {
+	case 1:
+		handler();
+		break;
+	default:
+		CDialogEx::OnTimer(nIDEvent);
+	}
+}
+
+
+void CSerialMonitorDlg::OnBnClickedButton3()
+{
+	// TODO: Add your control notification handler code here
+	KillTimer(NormalTimerID);
+	timeKillEvent(TimerID);
+	timeEndPeriod(1);
 }

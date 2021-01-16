@@ -11,6 +11,7 @@
 #include "resource.h"		// main symbols
 
 
+
 // CSerialMonitorApp:
 // See SerialMonitor.cpp for the implementation of this class
 //
